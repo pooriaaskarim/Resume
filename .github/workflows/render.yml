@@ -14,14 +14,15 @@ jobs:
     runs-on: ubuntu-latest  # Use the default Ubuntu environment
 
     steps:
+      # Checkout repository with the GITHUB_TOKEN already configured
       - name: Checkout repository
-        uses: actions/checkout@v2  # Use the latest version of checkout
+        uses: actions/checkout@v4.2.2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}  # Ensure the checkout uses the GITHUB_TOKEN for authentication
+          token: ${{ secrets.GITHUB_TOKEN }}  # Ensure GITHUB_TOKEN is used for all Git operations
 
       # Cache TeX Live environment (Downloaded files for LaTeX packages)
       - name: Cache TeX Live
-        uses: actions/cache@v4.1.2  # Use latest version of cache
+        uses: actions/cache@v4.1.2
         with:
           path: /usr/local/texlive
           key: ${{ runner.os }}-texlive-cache-${{ hashFiles('resume.tex') }}  # Cache key based on the OS and the LaTeX file
@@ -39,7 +40,7 @@ jobs:
 
       # Set up LaTeX environment and compile the PDF
       - name: Set up LaTeX environment
-        uses: dante-ev/latex-action@latest  # Use the latest LaTeX action
+        uses: dante-ev/latex-action@latest
         with:
           root_file: 'resume.tex'  # Specify your main LaTeX file
 
@@ -47,10 +48,7 @@ jobs:
       - name: Get latest version and increment
         id: versioning
         run: |
-          # Set up the GitHub authentication token for fetching tags
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-
-          # Fetch all tags
+          # Fetch all tags using the GITHUB_TOKEN already configured by actions/checkout
           git fetch --tags
 
           # Get latest tag if available
@@ -96,7 +94,7 @@ jobs:
           git tag ${{ env.NEW_TAG }}
           git push origin ${{ env.NEW_TAG }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use GitHub token for authentication
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use GITHUB_TOKEN for authentication
 
       # Rename the generated resume.pdf and upload to GitHub release
       - name: Prepare resume for upload
