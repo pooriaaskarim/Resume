@@ -17,12 +17,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      # Restore cache for LaTeX packages (TeX Live)
+      - name: Cache LaTeX packages
+        uses: actions/cache@v2
+        with:
+          path: /usr/local/texlive
+          key: ${{ runner.os }}-texlive-${{ hashFiles('resume.tex') }}  # Hash of the LaTeX file for cache key
+          restore-keys: |
+            ${{ runner.os }}-texlive-
+
+      # Set up LaTeX environment and specify output name and directory
       - name: Set up LaTeX environment
         uses: dante-ev/latex-action@latest  # Use the latest LaTeX action
         with:
           root_file: 'resume.tex'  # Specify your main LaTeX file
           output_directory: './'  # Specify output directory
           output_name: 'PooriaAskariMoqaddam.resume'  # Set the output PDF name
+
+      # Check if PDF was generated successfully
+      - name: Check if PDF exists
+        run: |
+          if [ ! -f PooriaAskariMoqaddam.resume.pdf ]; then
+            echo "PDF not found!"
+            exit 1
+          else
+            echo "PDF generated successfully!"
+          fi
 
       # Get the latest tag and increment the version number in v<version_number>.<YYMONTHDD> format
       - name: Get latest tag and increment version
@@ -53,10 +73,11 @@ jobs:
           git tag ${{ env.NEW_TAG }}
           git push origin ${{ env.NEW_TAG }}
 
+      # Upload compiled resume to GitHub release
       - name: Upload compiled resume to GitHub release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.NEW_TAG }}  # Use the generated tag stored in the environment variable
-          files: PooriaAskariMoqaddam.resume.pdf  # Upload the compiled PDF with the correct name
+          files: PooriaAskariMoqaddam.resume.pdf  # Upload the compiled PDF explicitly by path
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
