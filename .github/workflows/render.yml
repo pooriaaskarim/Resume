@@ -12,11 +12,13 @@ permissions:
   contents: write  # Allow actions to push commits and create tags
 
 jobs:
-  # Call the reusable versioning workflow to get the new tag
   versioning:
-    uses: ./.github/workflows/versioning.yml  # Call the versioning workflow
-    outputs:
-      new_tag: ${{ jobs.versioning.outputs.new_tag }}  # Capture the new tag output from the reusable workflow
+    runs-on: ubuntu-latest
+    steps:
+      # Call the reusable versioning workflow
+      - name: Run versioning workflow
+        id: versioning_step  # Give this step an ID to reference its outputs
+        uses: ./.github/workflows/versioning.yml
 
   build:
     needs: versioning  # This job depends on the versioning job
@@ -61,8 +63,8 @@ jobs:
       # Create a new tag for the release and push it
       - name: Create Git tag
         run: |
-          git tag ${{ needs.versioning.outputs.new_tag }}
-          git push origin ${{ needs.versioning.outputs.new_tag }}
+          git tag ${{ steps.versioning_step.outputs.new_tag }}  # Use the output from the reusable workflow
+          git push origin ${{ steps.versioning_step.outputs.new_tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -70,7 +72,7 @@ jobs:
       - name: Upload renamed resume to GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ needs.versioning.outputs.new_tag }}  # Use the generated tag stored in the environment variable
+          tag_name: ${{ steps.versioning_step.outputs.new_tag }}  # Use the output from the reusable workflow
           files: resume/PooriaAskariMoqaddam.resume.pdf  # Upload the renamed PDF
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
