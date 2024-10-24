@@ -14,36 +14,22 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@latest # Use latest version of checkout
 
-      # Restore cache for LaTeX packages (TeX Live)
-      - name: Cache LaTeX packages
-        uses: actions/cache@v2
+      # Restore cache for the TeX Live environment
+      - name: Cache TeX Live
+        uses: actions/cache@latest  # Use latest version of cache
         with:
-          path: /usr/local/texlive
-          key: ${{ runner.os }}-texlive-${{ hashFiles('resume.tex') }}  # Hash of the LaTeX file for cache key
+          path: /usr/local/texlive  # Path where TeX Live installs its packages
+          key: ${{ runner.os }}-texlive-cache-${{ hashFiles('resume.tex') }}  # Cache key based on the OS and .tex file
           restore-keys: |
-            ${{ runner.os }}-texlive-
+            ${{ runner.os }}-texlive-cache-
 
-      # Set up LaTeX environment and compile
+      # Set up LaTeX environment and compile the PDF
       - name: Set up LaTeX environment
         uses: dante-ev/latex-action@latest  # Use the latest LaTeX action
         with:
           root_file: 'resume.tex'  # Specify your main LaTeX file
-
-      # Rename the generated resume.pdf to PooriaAskariMoqaddam.resume.pdf
-      - name: Rename PDF
-        run: mv resume.pdf PooriaAskariMoqaddam.resume.pdf
-
-      # Check if the PDF was renamed successfully
-      - name: Check if renamed PDF exists
-        run: |
-          if [ ! -f PooriaAskariMoqaddam.resume.pdf ]; then
-            echo "Renamed PDF not found!"
-            exit 1
-          else
-            echo "PDF renamed successfully!"
-          fi
 
       # Get the latest tag and increment the version number in v<version_number>.<YYMONTHDD> format
       - name: Get latest tag and increment version
@@ -74,8 +60,10 @@ jobs:
           git tag ${{ env.NEW_TAG }}
           git push origin ${{ env.NEW_TAG }}
 
-      # Upload renamed resume to GitHub release
-      - name: Upload renamed resume to GitHub release
+      # Rename the generated resume.pdf and upload to GitHub release
+      - name: Upload resume to GitHub releases
+        run: |
+          mv resume.pdf PooriaAskariMoqaddam.resume.pdf  # Rename the file before upload
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.NEW_TAG }}  # Use the generated tag stored in the environment variable
