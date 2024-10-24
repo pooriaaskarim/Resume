@@ -16,14 +16,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      # Restore cache for LaTeX packages (TeX Live)
+      # Cache LaTeX packages (TeX Live)
       - name: Cache LaTeX packages
         uses: actions/cache@v2
         with:
-          path: /usr/local/texlive
-          key: ${{ runner.os }}-texlive-${{ hashFiles('resume.tex') }}  # Hash of the LaTeX file for cache key
+          path: /usr/local/texlive  # Path where TeX Live packages are installed
+          key: ${{ runner.os }}-texlive-${{ hashFiles('resume.tex') }}  # Cache based on OS and LaTeX file hash
           restore-keys: |
             ${{ runner.os }}-texlive-
+
+      # Cache LaTeX build artifacts (auxiliary and output files)
+      - name: Cache LaTeX build artifacts
+        uses: actions/cache@v2
+        with:
+          path: .  # Current directory (will cache all LaTeX output files)
+          key: ${{ runner.os }}-latex-build-${{ hashFiles('resume.tex') }}  # Cache key based on OS and file hash
+          restore-keys: |
+            ${{ runner.os }}-latex-build-
 
       # Set up LaTeX environment and compile
       - name: Set up LaTeX environment
@@ -34,16 +43,6 @@ jobs:
       # Rename the generated resume.pdf to PooriaAskariMoqaddam.resume.pdf
       - name: Rename PDF
         run: mv resume.pdf PooriaAskariMoqaddam.resume.pdf
-
-      # Check if the PDF was renamed successfully
-      - name: Check if renamed PDF exists
-        run: |
-          if [ ! -f PooriaAskariMoqaddam.resume.pdf ]; then
-            echo "Renamed PDF not found!"
-            exit 1
-          else
-            echo "PDF renamed successfully!"
-          fi
 
       # Get the latest tag and increment the version number in v<version_number>.<YYMONTHDD> format
       - name: Get latest tag and increment version
