@@ -4,27 +4,51 @@ on:
   push:
     branches:
       - main  # Trigger on pushes to the main branch
-    paths:
-      - 'resume/**'  # Trigger only if files in the resume directory are changed
-  workflow_dispatch:  # Allows manual triggering from the GitHub UI
 
 permissions:
   contents: write  # Allow actions to push commits and create tags
 
 jobs:
-  # Versioning job to handle tag generation
-  versioning:
-    runs-on: ubuntu-latest
-    outputs:
-      new_tag: ${{ steps.version.outputs.new_tag }}  # Pass the new tag to other jobs
+  build:
+    runs-on: ubuntu-latest  # Use the default Ubuntu environment
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      # Cache LaTeX packages (TeX Live)
+      - name: Cache LaTeX packages
+        uses: actions/cache@v2
+        with:
+          path: /usr/local/texlive  # Path where TeX Live packages are installed
+          key: ${{ runner.os }}-texlive-${{ hashFiles('resume.tex') }}  # Cache based on OS and LaTeX file hash
+          restore-keys: |
+            ${{ runner.os }}-texlive-
+
+      # Cache LaTeX build artifacts (auxiliary and output files)
+      - name: Cache LaTeX build artifacts
+        uses: actions/cache@v2
+        with:
+          path: .  # Current directory (will cache all LaTeX output files)
+          key: ${{ runner.os }}-latex-build-${{ hashFiles('resume.tex') }}  # Cache key based on OS and file hash
+          restore-keys: |
+            ${{ runner.os }}-latex-build-
+
+      # Set up LaTeX environment and compile
+      - name: Set up LaTeX environment
+        uses: dante-ev/latex-action@latest  # Use the latest LaTeX action
+        with:
+          root_file: 'resume.tex'  # Specify your main LaTeX file
+
+      # Rename the generated resume.pdf to PooriaAskariMoqaddam.resume.pdf
+      - name: Rename PDF
+        run: mv resume.pdf PooriaAskariMoqaddam.resume.pdf
+
+      # Get the latest tag and increment the version number in v<version_number>.<YYMONTHDD> format
       - name: Get latest tag and increment version
-        id: version
+        id: versioning
         run: |
-          # Fetch the latest tags
+          # Fetch all tags
           git fetch --tags
           
           # Get the latest tag, if available
@@ -41,64 +65,19 @@ jobs:
           
           # Generate the new tag in v<version_number>.<YYMONTHDD> format
           NEW_TAG="v$VERSION.$(date +'%y')$(date +'%b' | tr '[:lower:]' '[:upper:]')$(date +'%d')"
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
 
-          # Output the new tag for use in other jobs
-          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
-
-  # Main build job that depends on the versioning job
-  build:
-    needs: versioning  # This job depends on the versioning job
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      # Restore cache for LaTeX packages (TeX Live)
-      - name: Cache LaTeX packages
-        uses: actions/cache@v2
-        with:
-          path: /usr/local/texlive  # Path where TeX Live packages are installed
-          key: ${{ runner.os }}-texlive-${{ hashFiles('resume/resume.tex') }}  # Cache based on OS and LaTeX file hash
-          restore-keys: |
-            ${{ runner.os }}-texlive-
-
-      # Cache LaTeX build artifacts (auxiliary and output files)
-      - name: Cache LaTeX build artifacts
-        uses: actions/cache@v2
-        with:
-          path: ./resume  # Cache LaTeX intermediate files from the resume directory
-          key: ${{ runner.os }}-latex-build-${{ hashFiles('resume/resume.tex') }}  # Cache key based on OS and file hash
-          restore-keys: |
-            ${{ runner.os }}-latex-build-
-
-      # Set up LaTeX environment and compile
-      - name: Set up LaTeX environment
-        uses: dante-ev/latex-action@latest  # Use the latest LaTeX action
-        with:
-          root_file: 'resume/resume.tex'  # Specify the main LaTeX file in the resume directory
-
-      # Rename the generated resume.pdf to PooriaAskariMoqaddam.resume.pdf
-      - name: Rename PDF
-        run: mv resume/resume.pdf resume/PooriaAskariMoqaddam.resume.pdf
-
-      # Cleanup environment - remove unnecessary files
-      - name: Cleanup LaTeX build artifacts
-        run: |
-          rm -f resume/*.aux resume/*.log resume/*.out resume/*.fls
-
-      # Create a new tag for the release and push it
+      # Create a new tag for the release
       - name: Create Git tag
         run: |
-          git tag ${{ needs.versioning.outputs.new_tag }}  # Use the output from the versioning job
-          git push origin ${{ needs.versioning.outputs.new_tag }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git tag ${{ env.NEW_TAG }}
+          git push origin ${{ env.NEW_TAG }}
 
       # Upload renamed resume to GitHub release
       - name: Upload renamed resume to GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ needs.versioning.outputs.new_tag }}  # Use the output from the versioning job
-          files: resume/PooriaAskariMoqaddam.resume.pdf  # Upload the renamed PDF
+          tag_name: ${{ env.NEW_TAG }}  # Use the generated tag stored in the environment variable
+          files: PooriaAskariMoqaddam.resume.pdf  # Upload the renamed PDF
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
