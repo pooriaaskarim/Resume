@@ -31,10 +31,10 @@ jobs:
           # Fetch all tags
           git fetch --tags
           
-          # Get the latest tag
-          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
-          
-          if [ -z "$LATEST_TAG" ]; then
+          # Get the latest tag, if available
+          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1` || echo "none")
+
+          if [ "$LATEST_TAG" = "none" ]; then
             # If no tags exist, start from version 1
             VERSION=1
           else
