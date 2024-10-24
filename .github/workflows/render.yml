@@ -26,22 +26,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-texlive-
 
-      # Set up LaTeX environment and specify output name and directory
+      # Set up LaTeX environment and compile
       - name: Set up LaTeX environment
         uses: dante-ev/latex-action@latest  # Use the latest LaTeX action
         with:
           root_file: 'resume.tex'  # Specify your main LaTeX file
-          output_directory: './'  # Specify output directory
-          output_name: 'PooriaAskariMoqaddam.resume'  # Set the output PDF name
 
-      # Check if PDF was generated successfully
-      - name: Check if PDF exists
+      # Rename the generated resume.pdf to PooriaAskariMoqaddam.resume.pdf
+      - name: Rename PDF
+        run: mv resume.pdf PooriaAskariMoqaddam.resume.pdf
+
+      # Check if the PDF was renamed successfully
+      - name: Check if renamed PDF exists
         run: |
           if [ ! -f PooriaAskariMoqaddam.resume.pdf ]; then
-            echo "PDF not found!"
+            echo "Renamed PDF not found!"
             exit 1
           else
-            echo "PDF generated successfully!"
+            echo "PDF renamed successfully!"
           fi
 
       # Get the latest tag and increment the version number in v<version_number>.<YYMONTHDD> format
@@ -73,11 +75,11 @@ jobs:
           git tag ${{ env.NEW_TAG }}
           git push origin ${{ env.NEW_TAG }}
 
-      # Upload compiled resume to GitHub release
-      - name: Upload compiled resume to GitHub release
+      # Upload renamed resume to GitHub release
+      - name: Upload renamed resume to GitHub release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.NEW_TAG }}  # Use the generated tag stored in the environment variable
-          files: PooriaAskariMoqaddam.resume.pdf  # Upload the compiled PDF explicitly by path
+          files: PooriaAskariMoqaddam.resume.pdf  # Upload the renamed PDF
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
