@@ -73,7 +73,8 @@ jobs:
       - name: Set up LaTeX environment
         uses: dante-ev/latex-action@latest  # Use the latest LaTeX action
         with:
-          root_file: 'resume/resume.tex'  # Specify the main LaTeX file in the resume directory
+          root_file: 'resume.tex'  # Specify the main LaTeX file
+          working_directory: 'resume'  # Set working directory to resume/
 
       # Rename the generated resume.pdf to PooriaAskariMoqaddam.resume.pdf
       - name: Rename PDF
