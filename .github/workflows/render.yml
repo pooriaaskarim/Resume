@@ -71,3 +71,4 @@ jobs:
           files: PooriaAskariMoqaddam.resume.pdf  # Upload the renamed PDF
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
