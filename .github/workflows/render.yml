@@ -15,11 +15,11 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@latest  # Use the latest version of checkout
+        uses: actions/checkout@v4.2.2  # Use the latest version of checkout
 
       # Cache TeX Live environment (Downloaded files for LaTeX packages)
       - name: Cache TeX Live
-        uses: actions/cache@latest  # Use the latest version of cache
+        uses: actions/cache@v4.1.2 # Use the latest version of cache
         with:
           path: /usr/local/texlive  # Path to the installed LaTeX packages (TeX Live)
           key: ${{ runner.os }}-texlive-cache-${{ hashFiles('resume.tex') }}  # Cache key based on the OS and the LaTeX file
@@ -28,7 +28,7 @@ jobs:
 
       # Cache LaTeX build artifacts (auxiliary and output files)
       - name: Cache LaTeX build artifacts
-        uses: actions/cache@latest
+        uses: actions/cache@v4.1.2
         with:
           path: ./  # Cache LaTeX intermediate files (current directory)
           key: ${{ runner.os }}-latex-build-${{ hashFiles('resume.tex') }}  # Cache key based on the OS and LaTeX file
