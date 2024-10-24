@@ -1,0 +1,97 @@
+name: Render LaTeX Resume
+
+on:
+  push:
+    branches:
+      - main  # Trigger on pushes to the main branch
+    paths:
+      - 'resume/**'  # Trigger only if files in the resume directory are changed
+  workflow_dispatch:  # Allows manual triggering from the GitHub UI
+
+permissions:
+  contents: write  # Allow actions to push commits and create tags
+
+jobs:
+  versioning:
+    runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.versioning.outputs.NEW_TAG }}  # Output the new tag for use in other jobs
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Get latest tag and increment version
+        id: versioning
+        run: |
+          # Fetch all tags
+          git fetch --tags
+          
+          # Get the latest tag, if available
+          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1` || echo "none")
+
+          if [ "$LATEST_TAG" = "none" ]; then
+            # If no tags exist, start from version 1
+            VERSION=1
+          else
+            # Extract the version number from the latest tag (assuming format v<version_number>.<YYMONTHDD>)
+            VERSION=$(echo $LATEST_TAG | sed 's/v\([0-9]*\)\..*/\1/')
+            VERSION=$((VERSION + 1))  # Increment the version
+          fi
+          
+          # Generate the new tag in v<version_number>.<YYMONTHDD> format
+          NEW_TAG="v$VERSION.$(date +'%y')$(date +'%b' | tr '[:lower:]' '[:upper:]')$(date +'%d')"
+          
+          # Use the new environment file method to set the output
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_OUTPUT
+
+  build:
+    needs: versioning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Install TeX Live for LaTeX rendering
+      - name: Install TeX Live
+        run: sudo apt-get update && sudo apt-get install -y texlive-full  # Install full LaTeX distribution
+
+      # Restore cache for TeX Live packages (to speed up the installation process)
+      - name: Cache TeX Live packages
+        uses: actions/cache@v2
+        with:
+          path: /usr/local/texlive
+          key: ${{ runner.os }}-texlive-${{ hashFiles('resume/resume.tex') }}
+          restore-keys: |
+            ${{ runner.os }}-texlive-
+
+      # Compile the LaTeX document manually
+      - name: Compile LaTeX resume
+        run: |
+          cd resume  # Navigate to the resume directory
+          pdflatex resume.tex  # Compile the LaTeX document
+
+      # Rename the generated PDF file
+      - name: Rename PDF
+        run: mv resume/resume.pdf resume/PooriaAskariMoqaddam.resume.pdf
+
+      # Cleanup build artifacts
+      - name: Cleanup LaTeX build artifacts
+        run: |
+          rm -f resume/*.aux resume/*.log resume/*.out resume/*.fls
+
+      # Create a new tag for the release and push it
+      - name: Create Git tag
+        run: |
+          git tag ${{ needs.versioning.outputs.new_tag }}
+          git push origin ${{ needs.versioning.outputs.new_tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload the renamed resume to GitHub release
+      - name: Upload renamed resume to GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.versioning.outputs.new_tag }}  # Use the generated tag
+          files: resume/PooriaAskariMoqaddam.resume.pdf  # Upload the renamed PDF
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
