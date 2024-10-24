@@ -12,14 +12,40 @@ permissions:
   contents: write  # Allow actions to push commits and create tags
 
 jobs:
+  # Versioning job to handle tag generation
   versioning:
     runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.version.outputs.new_tag }}  # Pass the new tag to other jobs
     steps:
-      # Call the reusable versioning workflow
-      - name: Run versioning workflow
-        id: versioning_step  # Give this step an ID to reference its outputs
-        uses: ./.github/workflows/versioning.yml@main  # Correct syntax for calling a reusable workflow
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
+      - name: Get latest tag and increment version
+        id: version
+        run: |
+          # Fetch the latest tags
+          git fetch --tags
+          
+          # Get the latest tag, if available
+          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1` || echo "none")
+
+          if [ "$LATEST_TAG" = "none" ]; then
+            # If no tags exist, start from version 1
+            VERSION=1
+          else
+            # Extract the version number from the latest tag (assuming format v<version_number>.<YYMONTHDD>)
+            VERSION=$(echo $LATEST_TAG | sed 's/v\([0-9]*\)\..*/\1/')
+            VERSION=$((VERSION + 1))  # Increment the version
+          fi
+          
+          # Generate the new tag in v<version_number>.<YYMONTHDD> format
+          NEW_TAG="v$VERSION.$(date +'%y')$(date +'%b' | tr '[:lower:]' '[:upper:]')$(date +'%d')"
+
+          # Output the new tag for use in other jobs
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
+  # Main build job that depends on the versioning job
   build:
     needs: versioning  # This job depends on the versioning job
     runs-on: ubuntu-latest
@@ -63,8 +89,8 @@ jobs:
       # Create a new tag for the release and push it
       - name: Create Git tag
         run: |
-          git tag ${{ steps.versioning_step.outputs.new_tag }}  # Use the output from the reusable workflow
-          git push origin ${{ steps.versioning_step.outputs.new_tag }}
+          git tag ${{ needs.versioning.outputs.new_tag }}  # Use the output from the versioning job
+          git push origin ${{ needs.versioning.outputs.new_tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -72,7 +98,7 @@ jobs:
       - name: Upload renamed resume to GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.versioning_step.outputs.new_tag }}  # Use the output from the reusable workflow
+          tag_name: ${{ needs.versioning.outputs.new_tag }}  # Use the output from the versioning job
           files: resume/PooriaAskariMoqaddam.resume.pdf  # Upload the renamed PDF
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
