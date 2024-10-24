@@ -71,9 +71,11 @@ jobs:
           git push origin ${{ env.NEW_TAG }}
 
       # Rename the generated resume.pdf and upload to GitHub release
-      - name: Upload resume to GitHub releases
+      - name: Prepare resume for upload
         run: |
           mv resume.pdf PooriaAskariMoqaddam.resume.pdf  # Rename the file before upload
+
+      - name: Upload resume to GitHub releases
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.NEW_TAG }}  # Use the generated tag stored in the environment variable
