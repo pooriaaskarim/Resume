@@ -1,1 +1,2 @@
-[Download latest Version]([/guides/content/editing-an-existing-page](https://github.com/pooriaaskarim/Resume/releases/latest/PooriaAskariMoqaddam.resume.pdf)
+### Download latest Version
+  -   [PooriaAskariMoqaddam.resume](https://github.com/pooriaaskarim/Resume/releases/latest/PooriaAskariMoqaddam.resume.pdf)
