@@ -18,7 +18,7 @@ jobs:
       # Call the reusable versioning workflow
       - name: Run versioning workflow
         id: versioning_step  # Give this step an ID to reference its outputs
-        uses: ./.github/workflows/versioning.yml
+        uses: ./.github/workflows/versioning.yml@main  # Correct syntax for calling a reusable workflow
 
   build:
     needs: versioning  # This job depends on the versioning job
