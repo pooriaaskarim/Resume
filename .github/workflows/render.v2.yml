@@ -51,18 +51,47 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      # Restore the cached TeX Live installation (to avoid reinstalling)
-      - name: Cache TeX Live installation
+      # Install TeX Live for LaTeX rendering
+      - name: Install TeX Live
+        run: sudo apt-get update && sudo apt-get install -y texlive-full  # Install full LaTeX distribution
+
+      # Restore cache for TeX Live packages (to speed up the installation process)
+      - name: Cache TeX Live packages
         uses: actions/cache@v2
         with:
-          path: /usr/local/texlive  # Path to the TeX Live installation
-          key: ${{ runner.os }}-texlive-${{ hashFiles('resume/resume.tex') }}  # Cache key based on OS and LaTeX file hash
+          path: /usr/local/texlive
+          key: ${{ runner.os }}-texlive-${{ hashFiles('resume/resume.tex') }}
           restore-keys: |
             ${{ runner.os }}-texlive-
 
-      # Install TeX Live and required fonts for LaTeX rendering (if not cached)
-      - name: Install TeX Live and Fonts
+      # Compile the LaTeX document manually
+      - name: Compile LaTeX resume
         run: |
-          if [ ! -d "/usr/local/texlive" ]; then
-            sudo apt-get update
-            sudo apt-get install -y texlive-full texlive-fonts-extra  # Install full LaTeX and extra fon
+          cd resume  # Navigate to the resume directory
+          pdflatex resume.tex  # Compile the LaTeX document
+
+      # Rename the generated PDF file
+      - name: Rename PDF
+        run: mv resume/resume.pdf resume/PooriaAskariMoqaddam.resume.pdf
+
+      # Cleanup build artifacts
+      - name: Cleanup LaTeX build artifacts
+        run: |
+          rm -f resume/*.aux resume/*.log resume/*.out resume/*.fls
+
+      # Create a new tag for the release and push it
+      - name: Create Git tag
+        run: |
+          git tag ${{ needs.versioning.outputs.new_tag }}
+          git push origin ${{ needs.versioning.outputs.new_tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload the renamed resume to GitHub release
+      - name: Upload renamed resume to GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.versioning.outputs.new_tag }}  # Use the generated tag
+          files: resume/PooriaAskariMoqaddam.resume.pdf  # Upload the renamed PDF
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
