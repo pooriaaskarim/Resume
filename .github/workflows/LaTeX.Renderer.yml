@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main  # Trigger on pushes to the main branch
-  workflow_dispatch:  # Add this line to allow manual triggering
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   build:
@@ -15,13 +15,22 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Set up LaTeX environment
-        uses: dante-ev/latex-action@latest
+        uses: dante-ev/latex-action@v2
         with:
-          root_file: 'resume.tex'
+          root_file: 'resume.tex'  # Your main LaTeX file
+
+      # Create a new tag for the release
+      - name: Create Git tag
+        id: tag
+        run: |
+          TAG_NAME="v$(date +'%Y%m%d%H%M%S')"
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
 
       - name: Upload compiled resume to GitHub release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ steps.tag.outputs.TAG_NAME }}  # Use the generated tag
           files: resume.pdf  # Upload the compiled PDF directly
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
