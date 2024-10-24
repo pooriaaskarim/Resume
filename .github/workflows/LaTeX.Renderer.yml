@@ -1,0 +1,44 @@
+name: Build LaTeX Resume
+
+on:
+  push:
+    branches:
+      - main  # Trigger on pushes to the main branch
+  workflow_dispatch:  # Add this line to allow manual triggering
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up LaTeX environment
+        uses: dante-ev/latex-action@v2
+        with:
+          root_file: 'resume.tex'
+
+      - name: Upload compiled resume to GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: resume.pdf  # Upload the compiled PDF directly
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Update README with download link
+        run: |
+          echo "Updating README.md with the latest resume link..."
+          RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.assets[0].browser_download_url')
+          sed -i "s|Latest Resume:.*|Latest Resume: [Download here](${RELEASE_URL})|" README.md
+
+      - name: Commit updated README
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git add README.md
+          git commit -m "Update README with latest resume link"
+          git push
