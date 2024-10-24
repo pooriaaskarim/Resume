@@ -27,13 +27,14 @@ jobs:
         id: tag
         run: |
           TAG_NAME="v$(date +'%Y%m%d%H%M%S')"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV  # Store the tag in an environment variable
           git tag $TAG_NAME
           git push origin $TAG_NAME
 
       - name: Upload compiled resume to GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.tag.outputs.TAG_NAME }}  # Use the generated tag
+          tag_name: ${{ env.TAG_NAME }}  # Use the generated tag stored in the environment variable
           files: resume.pdf  # Upload the compiled PDF directly
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
