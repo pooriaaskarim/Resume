@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main  # Trigger on pushes to the main branch
+  workflow_dispatch:  # Allow manual triggering
 
 permissions:
   contents: write  # Allow actions to push commits and create tags
@@ -23,20 +24,40 @@ jobs:
           output_directory: './'  # Specify output directory
           output_name: 'PooriaAskariMoqaddam.resume'  # Set the output PDF name
 
-      # Create a new tag for the release with YYMONTHDD format
-      - name: Create Git tag
-        id: tag
+      # Get the latest tag and increment the version number
+      - name: Get latest tag and increment version
+        id: versioning
         run: |
-          TAG_NAME="$(date +'%y')$(date +'%b' | tr '[:lower:]' '[:upper:]')$(date +'%d')"  # YYMONTHDD format
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV  # Store the tag in an environment variable
-          git tag $TAG_NAME
-          git push origin $TAG_NAME
+          # Fetch all tags
+          git fetch --tags
+          
+          # Get the latest tag
+          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          
+          if [ -z "$LATEST_TAG" ]; then
+            # If no tags exist, start from version 1
+            VERSION=1
+          else
+            # Extract the version number from the latest tag
+            VERSION=$(echo $LATEST_TAG | sed 's/VERSION\.\([0-9]*\).*/\1/')
+            VERSION=$((VERSION + 1))  # Increment the version
+          fi
+          
+          # Generate the new tag in VERSION.YYMONTHDD format
+          NEW_TAG="VERSION.$VERSION.$(date +'%y')$(date +'%b' | tr '[:lower:]' '[:upper:]')$(date +'%d')"
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+
+      # Create a new tag for the release
+      - name: Create Git tag
+        run: |
+          git tag ${{ env.NEW_TAG }}
+          git push origin ${{ env.NEW_TAG }}
 
       - name: Upload compiled resume to GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ env.TAG_NAME }}  # Use the generated tag stored in the environment variable
-          files: PooriaAskariMoqaddam.resume.pdf  # Upload the compiled PDF with the new name
+          tag_name: ${{ env.NEW_TAG }}  # Use the generated tag stored in the environment variable
+          files: PooriaAskariMoqaddam.resume.pdf  # Upload the compiled PDF with the correct name
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -49,10 +70,11 @@ jobs:
           RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.assets[0].browser_download_url')
           sed -i "s|Latest Resume:.*|Latest Resume: [Download here](${RELEASE_URL})|" README.md
 
+      # Commit updated README and force add the README.md to avoid issues with untracked files
       - name: Commit updated README
         run: |
           git config --global user.name "${{ github.actor }}"
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-          git add README.md
+          git add README.md  # Only add README.md, ignore other untracked files
           git commit -m "Update README with latest resume link"
           git push
