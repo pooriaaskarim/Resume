@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4.2.2  # Use the latest version of checkout
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}  # Ensure the checkout uses the GITHUB_TOKEN for authentication
 
       # Cache TeX Live environment (Downloaded files for LaTeX packages)
       - name: Cache TeX Live
@@ -45,7 +47,10 @@ jobs:
       - name: Get latest version and increment
         id: versioning
         run: |
-          # Fetch all tags with authentication
+          # Set up the GitHub authentication token for fetching tags
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+
+          # Fetch all tags
           git fetch --tags
 
           # Get latest tag if available
