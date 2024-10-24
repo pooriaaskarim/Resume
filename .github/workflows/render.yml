@@ -40,8 +40,9 @@ jobs:
           
           # Generate the new tag in v<version_number>.<YYMONTHDD> format
           NEW_TAG="v$VERSION.$(date +'%y')$(date +'%b' | tr '[:lower:]' '[:upper:]')$(date +'%d')"
-          echo "NEW_TAG=$NEW_TAG"
-          echo "::set-output name=NEW_TAG::$NEW_TAG"  # Pass the new tag as output for the next job
+          
+          # Use the new environment file method to set the output
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_OUTPUT
 
   build:
     needs: versioning  # This job depends on the completion of the versioning job
