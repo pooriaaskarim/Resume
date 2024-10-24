@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   versioning:
-    runs-on: debian:stable-slim  # Use a lighter Debian-based image
+    runs-on: ubuntu-latest
     outputs:
       new_tag: ${{ steps.versioning.outputs.NEW_TAG }}  # Output the new tag for use in other jobs
     steps:
@@ -46,12 +46,12 @@ jobs:
 
   build:
     needs: versioning
-    runs-on: debian:stable-slim  # Use a lighter Debian-based image
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      # Restore the cache for TeX Live (cache installation to avoid repeated installs)
+      # Cache the TeX Live installation directory to avoid repeated installs
       - name: Cache TeX Live installation
         uses: actions/cache@v2
         with:
@@ -60,11 +60,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-texlive-
 
-      # Install only the minimal TeX Live packages if not already cached
-      - name: Install minimal TeX Live packages
+      # Install TeX Live packages (if not cached)
+      - name: Install TeX Live (minimal)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended
+          if [ ! -d "/usr/local/texlive" ]; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends \
+              texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended
+          fi
 
       # Compile the LaTeX document
       - name: Compile LaTeX resume
@@ -93,7 +96,7 @@ jobs:
       - name: Upload renamed resume to GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ needs.versioning.outputs.new_tag }}
+          tag_name: ${{ needs.versioning.outputs.new_tag }}  # Use the generated tag
           files: resume/PooriaAskariMoqaddam.resume.pdf
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
