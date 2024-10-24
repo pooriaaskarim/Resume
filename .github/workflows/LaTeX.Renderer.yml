@@ -21,12 +21,14 @@ jobs:
         uses: dante-ev/latex-action@latest  # Use the latest LaTeX action
         with:
           root_file: 'resume.tex'  # Specify your main LaTeX file
+          output_directory: './'  # Specify output directory
+          output_name: 'PooriaAskariMoqaddam.resume'  # Set the output PDF name
 
-      # Create a new tag for the release
+      # Create a new tag for the release with YYMONTHDD format
       - name: Create Git tag
         id: tag
         run: |
-          TAG_NAME="v$(date +'%Y%m%d%H%M%S')"
+          TAG_NAME="$(date +'%y')$(date +'%b' | tr '[:lower:]' '[:upper:]')$(date +'%d')"  # YYMONTHDD format
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV  # Store the tag in an environment variable
           git tag $TAG_NAME
           git push origin $TAG_NAME
@@ -35,7 +37,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.TAG_NAME }}  # Use the generated tag stored in the environment variable
-          files: resume.pdf  # Upload the compiled PDF directly
+          files: PooriaAskariMoqaddam.resume.pdf  # Upload the compiled PDF with the new name
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
