@@ -45,9 +45,13 @@ jobs:
       - name: Get latest version and increment
         id: versioning
         run: |
-          # Fetch all tags
+          # Set up GitHub authentication
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+          # Fetch all tags with authentication
           git fetch --tags
-          
+
           # Get latest tag if available
           LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1` || echo "v0.0.0")
 
@@ -90,6 +94,8 @@ jobs:
         run: |
           git tag ${{ env.NEW_TAG }}
           git push origin ${{ env.NEW_TAG }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use GitHub token for authentication
 
       # Rename the generated resume.pdf and upload to GitHub release
       - name: Prepare resume for upload
