@@ -8,16 +8,27 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # Using default runner for orchestration
+    container: debian:latest  # Run your job inside a minimal Debian container
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up LaTeX environment
-        uses: dante-ev/latex-action@latest
-        with:
-          root_file: 'resume.tex'  # Your main LaTeX file
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            texlive-latex-base \
+            texlive-latex-extra \
+            texlive-fonts-recommended \
+            texlive-latex-recommended \
+            texlive-science \
+            latexmk  # Install LaTeX and required tools
+
+      - name: Compile LaTeX document
+        run: |
+          latexmk -pdf -f resume.tex  # Compile the LaTeX file into a PDF
 
       # Create a new tag for the release
       - name: Create Git tag
@@ -30,13 +41,13 @@ jobs:
       - name: Upload compiled resume to GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.tag.outputs.TAG_NAME }}  # Use the generated tag
+          tag_name: ${{ steps.tag.outputs.TAG_NAME }}
           files: resume.pdf  # Upload the compiled PDF directly
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install jq
-        run: sudo apt-get install -y jq
+        run: apt-get install -y jq  # jq is required for JSON parsing
 
       - name: Update README with download link
         run: |
