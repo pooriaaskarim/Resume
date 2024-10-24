@@ -6,6 +6,7 @@ on:
       - main  # Trigger on pushes to the main branch
     paths:
       - 'resume/**'  # Trigger only if files in the resume directory are changed
+  workflow_dispatch:  # Allows manual triggering from the GitHub UI
 
 permissions:
   contents: write  # Allow actions to push commits and create tags
