@@ -15,16 +15,34 @@ jobs:
   versioning:
     runs-on: ubuntu-latest  # Use the default Ubuntu environment
     outputs:
-      new_tag: ${{ steps.versioning.outputs.new_tag }}  # Output the new tag for use in other jobs
+      new_tag: ${{ steps.versioning.outputs.NEW_TAG }}  # Output the new tag for use in other jobs
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Run versioning script
+      - name: Get latest tag and increment version
         id: versioning
         run: |
-          chmod +x ./scripts/versioning.sh
-          ./scripts/versioning.sh
+          # Fetch all tags
+          git fetch --tags
+          
+          # Get the latest tag, if available
+          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1` || echo "none")
+
+          if [ "$LATEST_TAG" = "none" ]; then
+            # If no tags exist, start from version 1
+            VERSION=1
+          else
+            # Extract the version number from the latest tag (assuming format v<version_number>.<YYMONTHDD>)
+            VERSION=$(echo $LATEST_TAG | sed 's/v\([0-9]*\)\..*/\1/')
+            VERSION=$((VERSION + 1))  # Increment the version
+          fi
+          
+          # Generate the new tag in v<version_number>.<YYMONTHDD> format
+          NEW_TAG="v$VERSION.$(date +'%y')$(date +'%b' | tr '[:lower:]' '[:upper:]')$(date +'%d')"
+          
+          # Use the new environment file method to set the output
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_OUTPUT
 
   build:
     needs: versioning  # This job depends on the completion of the versioning job
@@ -55,8 +73,8 @@ jobs:
       - name: Set up LaTeX environment
         uses: dante-ev/latex-action@latest  # Use the latest LaTeX action
         with:
-          root_file: 'resume/resume.tex'  # Specify the main LaTeX file in the resume directory
-
+          root_file: 'resume.tex'  # Specify the main LaTeX file
+          working_directory: 'resume'  # Set working directory to resume/
       # Rename the generated resume.pdf to PooriaAskariMoqaddam.resume.pdf
       - name: Rename PDF
         run: mv resume/resume.pdf resume/PooriaAskariMoqaddam.resume.pdf
