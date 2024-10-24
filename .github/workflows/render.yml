@@ -19,9 +19,9 @@ jobs:
 
       # Cache TeX Live environment (Downloaded files for LaTeX packages)
       - name: Cache TeX Live
-        uses: actions/cache@v4.1.2 # Use the latest version of cache
+        uses: actions/cache@v4.1.2  # Use latest version of cache
         with:
-          path: /usr/local/texlive  # Path to the installed LaTeX packages (TeX Live)
+          path: /usr/local/texlive
           key: ${{ runner.os }}-texlive-cache-${{ hashFiles('resume.tex') }}  # Cache key based on the OS and the LaTeX file
           restore-keys: |
             ${{ runner.os }}-texlive-cache-
@@ -41,27 +41,48 @@ jobs:
         with:
           root_file: 'resume.tex'  # Specify your main LaTeX file
 
-      # Get the latest tag and increment the version number in v<version_number>.<YYMONTHDD> format
-      - name: Get latest tag and increment version
+      # Get latest version, check commit messages, and increment version accordingly
+      - name: Get latest version and increment
         id: versioning
         run: |
           # Fetch all tags
           git fetch --tags
           
-          # Get the latest tag, if available
-          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1` || echo "none")
+          # Get latest tag if available
+          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1` || echo "v0.0.0")
 
-          if [ "$LATEST_TAG" = "none" ]; then
-            # If no tags exist, start from version 1
-            VERSION=1
+          # Extract the current major, minor, patch versions
+          VERSION_REGEX="^v([0-9]+)\.([0-9]+)\.([0-9]+)"
+          if [[ $LATEST_TAG =~ $VERSION_REGEX ]]; then
+            MAJOR=${BASH_REMATCH[1]}
+            MINOR=${BASH_REMATCH[2]}
+            PATCH=${BASH_REMATCH[3]}
           else
-            # Extract the version number from the latest tag (assuming format v<version_number>.<YYMONTHDD>)
-            VERSION=$(echo $LATEST_TAG | sed 's/v\([0-9]*\)\..*/\1/')
-            VERSION=$((VERSION + 1))  # Increment the version
+            MAJOR=0
+            MINOR=0
+            PATCH=0
           fi
-          
-          # Generate the new tag in v<version_number>.<YYMONTHDD> format
-          NEW_TAG="v$VERSION.$(date +'%y')$(date +'%b' | tr '[:lower:]' '[:upper:]')$(date +'%d')"
+
+          # Get the commit message from the latest commit
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+
+          # Determine version increment based on the commit message
+          if [[ "$COMMIT_MSG" =~ "BREAKING CHANGE" ]]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif [[ "$COMMIT_MSG" =~ "feat" ]]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          elif [[ "$COMMIT_MSG" =~ "fix" ]]; then
+            PATCH=$((PATCH + 1))
+          else
+            # Default to patch increment if nothing is detected
+            PATCH=$((PATCH + 1))
+          fi
+
+          # New version
+          NEW_TAG="v$MAJOR.$MINOR.$PATCH"
           echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
 
       # Create a new tag for the release
