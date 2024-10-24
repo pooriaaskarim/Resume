@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main  # Trigger on pushes to the main branch
-  workflow_dispatch:  # Allow manual triggering
 
 permissions:
   contents: write  # Allow actions to push commits and create tags
@@ -14,76 +13,59 @@ jobs:
     runs-on: ubuntu-latest  # Use the default Ubuntu environment
 
     steps:
-      # Checkout repository with all tags already fetched
       - name: Checkout repository
-        uses: actions/checkout@v4.2.2  # Use the latest version of checkout
-        with:
-          fetch-depth: 0  # Fetch all history including tags
-          token: ${{ secrets.GITHUB_TOKEN }}  # Ensure GITHUB_TOKEN is used for all Git operations
+        uses: actions/checkout@v2
 
-      # Cache TeX Live environment (Downloaded files for LaTeX packages)
-      - name: Cache TeX Live
-        uses: actions/cache@v4.1.2  # Use latest version of cache
+      # Restore cache for LaTeX packages (TeX Live)
+      - name: Cache LaTeX packages
+        uses: actions/cache@v2
         with:
           path: /usr/local/texlive
-          key: ${{ runner.os }}-texlive-cache-${{ hashFiles('resume.tex') }}  # Cache key based on the OS and the LaTeX file
+          key: ${{ runner.os }}-texlive-${{ hashFiles('resume.tex') }}  # Hash of the LaTeX file for cache key
           restore-keys: |
-            ${{ runner.os }}-texlive-cache-
+            ${{ runner.os }}-texlive-
 
-      # Cache LaTeX build artifacts (auxiliary and output files)
-      - name: Cache LaTeX build artifacts
-        uses: actions/cache@v4.1.2
-        with:
-          path: ./  # Cache LaTeX intermediate files (current directory)
-          key: ${{ runner.os }}-latex-build-${{ hashFiles('resume.tex') }}  # Cache key based on the OS and LaTeX file
-          restore-keys: |
-            ${{ runner.os }}-latex-build-
-
-      # Set up LaTeX environment and compile the PDF
+      # Set up LaTeX environment and compile
       - name: Set up LaTeX environment
         uses: dante-ev/latex-action@latest  # Use the latest LaTeX action
         with:
           root_file: 'resume.tex'  # Specify your main LaTeX file
 
-      # Get latest version, check commit messages, and increment version accordingly
-      - name: Get latest version and increment
+      # Rename the generated resume.pdf to PooriaAskariMoqaddam.resume.pdf
+      - name: Rename PDF
+        run: mv resume.pdf PooriaAskariMoqaddam.resume.pdf
+
+      # Check if the PDF was renamed successfully
+      - name: Check if renamed PDF exists
+        run: |
+          if [ ! -f PooriaAskariMoqaddam.resume.pdf ]; then
+            echo "Renamed PDF not found!"
+            exit 1
+          else
+            echo "PDF renamed successfully!"
+          fi
+
+      # Get the latest tag and increment the version number in v<version_number>.<YYMONTHDD> format
+      - name: Get latest tag and increment version
         id: versioning
         run: |
-          # Since checkout fetches tags, no need to fetch again
-          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1` || echo "v0.0.0")
+          # Fetch all tags
+          git fetch --tags
+          
+          # Get the latest tag, if available
+          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1` || echo "none")
 
-          # Extract the current major, minor, patch versions
-          VERSION_REGEX="^v([0-9]+)\.([0-9]+)\.([0-9]+)"
-          if [[ $LATEST_TAG =~ $VERSION_REGEX ]]; then
-            MAJOR=${BASH_REMATCH[1]}
-            MINOR=${BASH_REMATCH[2]}
-            PATCH=${BASH_REMATCH[3]}
+          if [ "$LATEST_TAG" = "none" ]; then
+            # If no tags exist, start from version 1
+            VERSION=1
           else
-            MAJOR=0
-            MINOR=0
-            PATCH=0
+            # Extract the version number from the latest tag (assuming format v<version_number>.<YYMONTHDD>)
+            VERSION=$(echo $LATEST_TAG | sed 's/v\([0-9]*\)\..*/\1/')
+            VERSION=$((VERSION + 1))  # Increment the version
           fi
-
-          # Get the commit message from the latest commit
-          COMMIT_MSG=$(git log -1 --pretty=%B)
-
-          # Determine version increment based on the commit message
-          if [[ "$COMMIT_MSG" =~ "BREAKING CHANGE" ]]; then
-            MAJOR=$((MAJOR + 1))
-            MINOR=0
-            PATCH=0
-          elif [[ "$COMMIT_MSG" =~ "feat" ]]; then
-            MINOR=$((MINOR + 1))
-            PATCH=0
-          elif [[ "$COMMIT_MSG" =~ "fix" ]]; then
-            PATCH=$((PATCH + 1))
-          else
-            # Default to patch increment if nothing is detected
-            PATCH=$((PATCH + 1))
-          fi
-
-          # New version
-          NEW_TAG="v$MAJOR.$MINOR.$PATCH"
+          
+          # Generate the new tag in v<version_number>.<YYMONTHDD> format
+          NEW_TAG="v$VERSION.$(date +'%y')$(date +'%b' | tr '[:lower:]' '[:upper:]')$(date +'%d')"
           echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
 
       # Create a new tag for the release
@@ -91,15 +73,9 @@ jobs:
         run: |
           git tag ${{ env.NEW_TAG }}
           git push origin ${{ env.NEW_TAG }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use GitHub token for authentication
 
-      # Rename the generated resume.pdf and upload to GitHub release
-      - name: Prepare resume for upload
-        run: |
-          mv resume.pdf PooriaAskariMoqaddam.resume.pdf  # Rename the file before upload
-
-      - name: Upload resume to GitHub releases
+      # Upload renamed resume to GitHub release
+      - name: Upload renamed resume to GitHub release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.NEW_TAG }}  # Use the generated tag stored in the environment variable
