@@ -24,7 +24,7 @@ jobs:
           output_directory: './'  # Specify output directory
           output_name: 'PooriaAskariMoqaddam.resume'  # Set the output PDF name
 
-      # Get the latest tag and increment the version number
+      # Get the latest tag and increment the version number in v<version_number>.<YYMONTHDD> format
       - name: Get latest tag and increment version
         id: versioning
         run: |
@@ -38,13 +38,13 @@ jobs:
             # If no tags exist, start from version 1
             VERSION=1
           else
-            # Extract the version number from the latest tag
-            VERSION=$(echo $LATEST_TAG | sed 's/VERSION\.\([0-9]*\).*/\1/')
+            # Extract the version number from the latest tag (assuming format v<version_number>.<YYMONTHDD>)
+            VERSION=$(echo $LATEST_TAG | sed 's/v\([0-9]*\)\..*/\1/')
             VERSION=$((VERSION + 1))  # Increment the version
           fi
           
-          # Generate the new tag in VERSION.YYMONTHDD format
-          NEW_TAG="VERSION.$VERSION.$(date +'%y')$(date +'%b' | tr '[:lower:]' '[:upper:]')$(date +'%d')"
+          # Generate the new tag in v<version_number>.<YYMONTHDD> format
+          NEW_TAG="v$VERSION.$(date +'%y')$(date +'%b' | tr '[:lower:]' '[:upper:]')$(date +'%d')"
           echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
 
       # Create a new tag for the release
@@ -60,21 +60,3 @@ jobs:
           files: PooriaAskariMoqaddam.resume.pdf  # Upload the compiled PDF with the correct name
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install jq
-        run: sudo apt-get install -y jq  # Install jq to parse JSON responses
-
-      - name: Update README with download link
-        run: |
-          echo "Updating README.md with the latest resume link..."
-          RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.assets[0].browser_download_url')
-          sed -i "s|Latest Resume:.*|Latest Resume: [Download here](${RELEASE_URL})|" README.md
-
-      # Commit updated README and force add the README.md to avoid issues with untracked files
-      - name: Commit updated README
-        run: |
-          git config --global user.name "${{ github.actor }}"
-          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-          git add README.md  # Only add README.md, ignore other untracked files
-          git commit -m "Update README with latest resume link"
-          git push
