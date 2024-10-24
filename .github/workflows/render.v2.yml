@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   versioning:
-    runs-on: ubuntu-latest
+    runs-on: debian:stable-slim  # Use a lighter Debian-based image
     outputs:
       new_tag: ${{ steps.versioning.outputs.NEW_TAG }}  # Output the new tag for use in other jobs
     steps:
@@ -46,28 +46,30 @@ jobs:
 
   build:
     needs: versioning
-    runs-on: ubuntu-latest
+    runs-on: debian:stable-slim  # Use a lighter Debian-based image
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      # Install TeX Live for LaTeX rendering
-      - name: Install TeX Live
-        run: sudo apt-get update && sudo apt-get install -y texlive-full  # Install full LaTeX distribution
-
-      # Restore cache for TeX Live packages (to speed up the installation process)
-      - name: Cache TeX Live packages
+      # Restore the cache for TeX Live (cache installation to avoid repeated installs)
+      - name: Cache TeX Live installation
         uses: actions/cache@v2
         with:
-          path: /usr/local/texlive
-          key: ${{ runner.os }}-texlive-${{ hashFiles('resume/resume.tex') }}
+          path: /usr/local/texlive  # Cache the LaTeX installation directory
+          key: ${{ runner.os }}-texlive-${{ hashFiles('resume/resume.tex') }}  # Cache key based on OS and LaTeX file hash
           restore-keys: |
             ${{ runner.os }}-texlive-
 
-      # Compile the LaTeX document manually
+      # Install only the minimal TeX Live packages if not already cached
+      - name: Install minimal TeX Live packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended
+
+      # Compile the LaTeX document
       - name: Compile LaTeX resume
         run: |
-          cd resume  # Navigate to the resume directory
+          cd resume
           pdflatex resume.tex  # Compile the LaTeX document
 
       # Rename the generated PDF file
@@ -91,7 +93,7 @@ jobs:
       - name: Upload renamed resume to GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ needs.versioning.outputs.new_tag }}  # Use the generated tag
-          files: resume/PooriaAskariMoqaddam.resume.pdf  # Upload the renamed PDF
+          tag_name: ${{ needs.versioning.outputs.new_tag }}
+          files: resume/PooriaAskariMoqaddam.resume.pdf
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
